@@ -45,6 +45,7 @@
 #define REPLY_RAW_DATA_LEN     4 /* variable length command */
 #define REPLY_FMT_DATA_LEN     3 /* variable length command */
 #define REPLY_BUSY_DATA_LEN    0
+#define REPLY_RBIOMATCH_DATA_LEN 3
 
 enum osdp_cp_error_e {
 	OSDP_CP_ERR_NONE = 0,
@@ -321,6 +322,7 @@ static int cp_build_command(struct osdp_pd *pd, uint8_t *buf, int max_len)
 		ret = 0;
 		break;
 	case CMD_ABORT:
+	case CMD_ABORT22:
 		buf[len++] = pd->cmd_id;
 		ret = 0;
 		break;
@@ -384,6 +386,23 @@ static int cp_build_command(struct osdp_pd *pd, uint8_t *buf, int max_len)
 			buf[len++] = pd->sc.cp_cryptogram[i];
 		ret = 0;
 		break;
+	case CMD_BIOMATCH:
+		cmd = (struct osdp_cmd *)pd->ephemeral_data;
+		//ASSERT_BUF_LEN(CMD_TEXT_LEN + cmd->bio_match.length);
+		buf[len++] = pd->cmd_id;
+		buf[len++] = cmd->text.reader;
+		buf[len++] = cmd->bio_match.bio_type;
+		buf[len++] = cmd->bio_match.bio_format;
+		buf[len++] = cmd->bio_match.bio_quality;
+		uint8_t ms = cmd->bio_match.length >> 8;
+		uint8_t ls = cmd->bio_match.length & 0xFF;
+		buf[len++] = ls;
+		buf[len++] = ms;
+		for (i = 0; i < cmd->bio_match.length; i++) {
+			buf[len++] = cmd->bio_match.data[i];
+		}
+		ret = 0;
+		break;	
 	default:
 		LOG_ERR("Unknown/Unsupported CMD(%02x)", pd->cmd_id);
 		return OSDP_CP_ERR_GENERIC;
@@ -413,6 +432,8 @@ static int cp_build_command(struct osdp_pd *pd, uint8_t *buf, int max_len)
 
 	return len;
 }
+
+
 
 static int cp_decode_response(struct osdp_pd *pd, uint8_t *buf, int len)
 {
@@ -621,6 +642,18 @@ static int cp_decode_response(struct osdp_pd *pd, uint8_t *buf, int len)
 				    pd->idx, &event);
 		ret = OSDP_CP_ERR_NONE;
 		break;
+	case REPLY_BIOMATCHR:
+		if (len < REPLY_RBIOMATCH_DATA_LEN || !ctx->event_callback) {
+			break;
+		}
+		event.type = OSDP_EVENT_BIOMATCH;
+		event.bio_match.reader_no = buf[pos++];
+		event.bio_match.status = buf[pos++];
+		event.bio_match.score = buf[pos++];
+		ctx->event_callback(ctx->event_callback_arg,
+				    pd->idx, &event);
+		ret = OSDP_CP_ERR_NONE;
+		break;		
 	case REPLY_FTSTAT:
 		ret = osdp_file_cmd_stat_decode(pd, buf + pos, len);
 		break;
@@ -1385,7 +1418,7 @@ int osdp_cp_send_command(osdp_t *ctx, int pd_idx, struct osdp_cmd *p)
 		break;
 	case OSDP_CMD_TEXT:
 		cmd_id = CMD_TEXT;
-		break;
+		break;	
 	case OSDP_CMD_COMSET:
 		cmd_id = CMD_COMSET;
 		break;
@@ -1395,6 +1428,15 @@ int osdp_cp_send_command(osdp_t *ctx, int pd_idx, struct osdp_cmd *p)
 	case OSDP_CMD_FILE_TX:
 		return osdp_file_tx_initiate(pd, p->file_tx.id,
 					     p->file_tx.flags);
+	case OSDP_CMD_BIOMATCH:
+		cmd_id = CMD_BIOMATCH;
+		break;
+	case OSDP_CMD_ABORT:
+		cmd_id = CMD_ABORT;
+		break;	
+	case OSDP_CMD_ABORT22:
+		cmd_id = CMD_ABORT22;
+		break;		
 	case OSDP_CMD_KEYSET:
 		if (p->keyset.type == 1) {
 			if (!sc_is_active(pd))
@@ -1409,7 +1451,7 @@ int osdp_cp_send_command(osdp_t *ctx, int pd_idx, struct osdp_cmd *p)
 		}
 		return osdp_cp_send_command_keyset(ctx, &p->keyset);
 	default:
-		LOG_PRINT("Invalid CMD_ID:%d", p->id);
+		LOG_PRINT("IInvalid CMD_ID:%d", p->id);
 		return -1;
 	}
 

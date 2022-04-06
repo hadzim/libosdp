@@ -126,6 +126,7 @@ union osdp_ephemeral_data {
 #define CMD_MFG		 0x80
 #define CMD_SCDONE	 0xA0
 #define CMD_XWR		 0xA1
+#define CMD_ABORT22		 0xA2
 #define CMD_KEEPACTIVE	 0xA7
 
 /**

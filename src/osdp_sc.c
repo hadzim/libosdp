@@ -14,8 +14,21 @@ static const uint8_t osdp_scbk_default[16] = {
 	0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F
 };
 
+static void print_buffer(const char * name, uint8_t *buf, int len){
+	printf("%s:", name);
+	int i;
+	for (i = 0; i < len; i++){
+    	if (i > 0) printf(":");
+    	printf("%02X", buf[i]);
+	}
+	printf("\n");
+}
+
+
 void osdp_compute_scbk(struct osdp_pd *pd, uint8_t *master_key, uint8_t *scbk)
 {
+	print_buffer("master_key", master_key, 16);
+		
 	int i;
 
 	memcpy(scbk, pd->sc.pd_client_uid, 8);
@@ -23,7 +36,10 @@ void osdp_compute_scbk(struct osdp_pd *pd, uint8_t *master_key, uint8_t *scbk)
 		scbk[i] = ~scbk[i - 8];
 	}
 	osdp_encrypt(master_key, NULL, scbk, 16);
+
+	print_buffer("scbk", scbk, 16);
 }
+
 
 void osdp_compute_session_keys(struct osdp_pd *pd)
 {
@@ -35,8 +51,10 @@ void osdp_compute_session_keys(struct osdp_pd *pd)
 		memcpy(scbk, osdp_scbk_default, 16);
 	} else {
 		if (is_cp_mode(pd) && !ISSET_FLAG(pd, PD_FLAG_HAS_SCBK)) {
+			printf("IS_CP_MODE - COMPUTE FROM MASTER KEY\n");
 			osdp_compute_scbk(pd, ctx->sc_master_key, scbk);
 		} else {
+			printf("!IS_CP_MODE - COPY\n");
 			memcpy(scbk, pd->sc.scbk, 16);
 		}
 	}
@@ -58,9 +76,21 @@ void osdp_compute_session_keys(struct osdp_pd *pd)
 		pd->sc.s_mac2[i] = pd->sc.cp_random[i - 2];
 	}
 
+
+	print_buffer("before", pd->sc.s_enc, 16);
+	print_buffer("before", pd->sc.s_mac1, 16);
+	print_buffer("before", pd->sc.s_mac2, 16);
+
 	osdp_encrypt(scbk, NULL, pd->sc.s_enc, 16);
 	osdp_encrypt(scbk, NULL, pd->sc.s_mac1, 16);
 	osdp_encrypt(scbk, NULL, pd->sc.s_mac2, 16);
+
+	print_buffer("after", pd->sc.s_enc, 16);
+	print_buffer("after", pd->sc.s_mac1, 16);
+	print_buffer("after", pd->sc.s_mac2, 16);
+
+
+	print_buffer("SCBK", scbk, 16);
 }
 
 void osdp_compute_cp_cryptogram(struct osdp_pd *pd)
@@ -112,14 +142,27 @@ void osdp_compute_pd_cryptogram(struct osdp_pd *pd)
 	osdp_encrypt(pd->sc.s_enc, NULL, pd->sc.pd_cryptogram, 16);
 }
 
+
+
 int osdp_verify_pd_cryptogram(struct osdp_pd *pd)
 {
 	uint8_t pd_crypto[16];
 
 	/* pd_cryptogram = AES-ECB( cp_random[8] || pd_random[8], s_enc ) */
+
+	
 	memcpy(pd_crypto + 0, pd->sc.cp_random, 8);
 	memcpy(pd_crypto + 8, pd->sc.pd_random, 8);
+
+
 	osdp_encrypt(pd->sc.s_enc, NULL, pd_crypto, 16);
+
+	print_buffer("cp_random", pd->sc.cp_random, 8);
+	print_buffer("pd_random", pd->sc.pd_random, 8);
+	print_buffer("pd_cryptogram", pd->sc.pd_cryptogram, 16);
+	print_buffer("expected_cryptogram", pd_crypto, 16);
+	print_buffer("KEY", pd->sc.s_enc, 16);
+
 
 	if (osdp_ct_compare(pd->sc.pd_cryptogram, pd_crypto, 16) != 0) {
 		return -1;

@@ -13,7 +13,8 @@
 extern "C" {
 #endif
 
-#define OSDP_CMD_TEXT_MAX_LEN	    32
+#define OSDP_CMD_TEXT_MAX_LEN	    256
+#define OSDP_CMD_BIO_MAX_LEN	    512
 #define OSDP_CMD_KEYSET_KEY_MAX_LEN 16
 #define OSDP_CMD_MFG_MAX_DATALEN    64
 #define OSDP_EVENT_MAX_DATALEN	    64
@@ -501,6 +502,18 @@ struct osdp_cmd_file_tx {
 };
 
 /**
+ * @brief Bio Read/Match specific
+ */
+struct osdp_cmd_bio_match {
+	uint8_t reader;
+	uint8_t bio_type;
+	uint8_t bio_format;
+	uint8_t bio_quality;
+	uint8_t length;
+	uint8_t data[OSDP_CMD_BIO_MAX_LEN];
+};
+
+/**
  * @brief OSDP application exposed commands
  */
 enum osdp_cmd_e {
@@ -512,6 +525,9 @@ enum osdp_cmd_e {
 	OSDP_CMD_COMSET,
 	OSDP_CMD_MFG,
 	OSDP_CMD_FILE_TX,
+	OSDP_CMD_BIOMATCH,
+	OSDP_CMD_ABORT,
+	OSDP_CMD_ABORT22,
 	OSDP_CMD_SENTINEL
 };
 
@@ -537,6 +553,7 @@ struct osdp_cmd {
 		struct osdp_cmd_comset comset;
 		struct osdp_cmd_keyset keyset;
 		struct osdp_cmd_mfg mfg;
+		struct osdp_cmd_bio_match bio_match;
 		struct osdp_cmd_file_tx file_tx;
 	};
 };
@@ -622,6 +639,17 @@ struct osdp_event_file_tx {
 };
 
 /**
+ * @brief OSDP BioMatch Command
+ *
+ * TODO params
+ */
+struct osdp_event_bio_match {
+	int reader_no;
+	uint8_t status;
+	uint8_t score;
+};
+
+/**
  * @brief OSDP PD Events
  */
 enum osdp_event_type {
@@ -629,6 +657,7 @@ enum osdp_event_type {
 	OSDP_EVENT_KEYPRESS,
 	OSDP_EVENT_MFGREP,
 	OSDP_EVENT_FILE_TX,
+	OSDP_EVENT_BIOMATCH,
 	OSDP_EVENT_SENTINEL
 };
 
@@ -647,6 +676,7 @@ struct osdp_event {
 		struct osdp_event_cardread cardread;
 		struct osdp_event_mfgrep mfgrep;
 		struct osdp_event_file_tx file_tx;
+		struct osdp_event_bio_match bio_match;
 	};
 };
 

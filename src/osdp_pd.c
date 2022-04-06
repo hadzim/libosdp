@@ -522,6 +522,12 @@ static int pd_decode_command(struct osdp_pd *pd, uint8_t *buf, int len)
 		pd->reply_id = REPLY_ACK;
 		ret = OSDP_PD_ERR_NONE;
 		break;
+	case CMD_ABORT22:
+		ASSERT_LENGTH(len, CMD_ABORT_DATA_LEN);
+		osdp_file_tx_abort(pd);
+		pd->reply_id = REPLY_ACK;
+		ret = OSDP_PD_ERR_NONE;
+		break;	
 	case CMD_FILETRANSFER:
 		ret = osdp_file_cmd_tx_decode(pd, buf + pos, len);
 		if (ret == 0) {

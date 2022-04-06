@@ -171,6 +171,7 @@ const char *osdp_cmd_name(int cmd_id)
 		[CMD_MFG          - CMD_POLL] = "MFG",
 		[CMD_SCDONE       - CMD_POLL] = "SCDONE",
 		[CMD_XWR          - CMD_POLL] = "XWR",
+		[CMD_ABORT22      - CMD_POLL] = "ABORT22",
 		[CMD_KEEPACTIVE   - CMD_POLL] = "KEEPACTIVE",
 	};
 
